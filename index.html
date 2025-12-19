@@ -889,9 +889,14 @@
     // 2. 使用相对路径（如果 API 服务器与前端在同一域名下）
     // 3. 在 Capacitor 配置中设置服务器地址
     function getApiBaseUrl() {
+      // 本机直接访问模式：直接连接本地后端服务器
+      // 确保后端 API 服务器运行在 http://localhost:8000
+      return 'http://localhost:8000';
+      
+      // 如果需要使用 Nginx 代理（生产环境），取消上面的 return，使用下面的配置：
       // 前端通过 Nginx 部署在 47.98.180.26:80，后端 API 也由 Nginx 代理到同域的 /api
       // 因此前端统一使用相对路径，让浏览器请求当前域名下的 /api/*，再由 Nginx 转发到 FastAPI
-      return '';
+      // return '';
     }
     
     const API_BASE_URL = getApiBaseUrl();
