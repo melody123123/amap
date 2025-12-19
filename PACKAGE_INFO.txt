@@ -1,0 +1,33 @@
+核心代码打包说明
+==================
+
+打包时间: 2025-12-19 20:50:50
+项目名称: ama_ageant (高德地图路线规划智能体)
+
+包含的核心文件:
+- api_server.py: FastAPI服务器主程序
+- amap_mcp_agent.py: 核心智能体逻辑
+- amap_tools.py: 高德地图API工具封装
+- config.json: 配置文件（包含API密钥，请妥善保管）
+- requirements.txt: Python依赖列表
+- index.html: 前端页面
+- start_server.sh: 启动脚本
+- stop_server.sh: 停止脚本
+
+排除的文件:
+- route_cache.json: 路由缓存文件
+- logs/: 日志目录
+- __pycache__/: Python缓存目录
+- *.bak_*: 备份文件
+- *.log, *.pid, *.out: 运行时文件
+- workspace/: 工作目录
+- node_modules/: Node.js依赖
+- *.md: 文档文件（除README.md外）
+
+部署说明:
+1. 解压文件到目标目录
+2. 安装Python依赖: pip install -r requirements.txt
+3. 配置config.json中的API密钥
+4. 运行启动脚本: bash start_server.sh
+
+注意: config.json包含敏感信息，请勿泄露！

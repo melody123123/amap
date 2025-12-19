@@ -1,0 +1,1938 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>🗺️ 智能路线规划助手 - AI驱动的多途经点导航</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background-attachment: fixed;
+      color: #1f2933;
+      min-height: 100vh;
+      position: relative;
+    }
+    
+    /* 背景装饰 */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(234, 88, 12, 0.2) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .page { 
+      max-width: 1080px; 
+      margin: 0 auto; 
+      padding: 32px 16px 40px;
+      position: relative;
+      z-index: 1;
+    }
+    @media (max-width: 768px) {
+      .page { padding: 16px 12px 32px; }
+      h1 { font-size: 24px; }
+      .card { padding: 14px 16px; margin-bottom: 14px; }
+      input { font-size: 16px; } /* 防止 iOS 自动缩放 */
+    }
+    
+    /* 页面标题 */
+    h1 { 
+      font-size: 32px; 
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      text-align: center;
+      padding: 8px 0;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .subtitle { 
+      font-size: 14px; 
+      color: #e0e7ff; 
+      margin-bottom: 28px;
+      text-align: center;
+      font-weight: 400;
+    }
+    
+    /* 卡片样式 */
+    .card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 20px 22px;
+      box-shadow: 
+        0 10px 40px rgba(0, 0, 0, 0.1),
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.15),
+        0 4px 12px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+    
+    .card:hover::before {
+      opacity: 1;
+    }
+    
+    /* 加载动画 */
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    
+    @keyframes shimmer {
+      0% {
+        background-position: -1000px 0;
+      }
+      100% {
+        background-position: 1000px 0;
+      }
+    }
+    
+    .loading {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    /* 渐入动画 */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .card {
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+    .card:nth-child(4) { animation-delay: 0.4s; }
+    .card:nth-child(5) { animation-delay: 0.5s; }
+    
+    .row { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+    .field { flex: 1 1 240px; min-width: 0; }
+    
+    label { 
+      display: block; 
+      font-size: 13px; 
+      color: #4b5563; 
+      margin-bottom: 6px;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+    }
+    
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border-radius: 10px;
+      border: 2px solid #e5e7eb;
+      font-size: 14px;
+      outline: none;
+      background: #ffffff;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+    
+    input:focus {
+      border-color: #667eea;
+      box-shadow: 
+        0 0 0 3px rgba(102, 126, 234, 0.15),
+        0 4px 12px rgba(102, 126, 234, 0.1);
+      background: #ffffff;
+      transform: translateY(-1px);
+    }
+    
+    input:hover:not(:focus) {
+      border-color: #d1d5db;
+    }
+    
+    button {
+      padding: 10px 20px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: left 0.5s;
+    }
+    
+    button:hover::before {
+      left: 100%;
+    }
+    
+    button:disabled { 
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.6;
+    }
+    
+    button:not(:disabled):hover { 
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+    
+    button:not(:disabled):active {
+      transform: translateY(0);
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* 聊天界面样式 */
+    .chat-messages {
+      max-height: 420px;
+      overflow-y: auto;
+      margin-bottom: 14px;
+      padding: 12px;
+      background: linear-gradient(135deg, #fafbff 0%, #f9fafb 100%);
+      border-radius: 12px;
+      border: 2px solid #e5e7eb;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .chat-messages::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .chat-messages::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      border-radius: 3px;
+    }
+    
+    .chat-message {
+      margin-bottom: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .chat-message.user {
+      flex-direction: row-reverse;
+    }
+    
+    .chat-bubble {
+      max-width: 75%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      word-wrap: break-word;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      transition: all 0.2s;
+    }
+    
+    .chat-bubble:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    }
+    
+    .chat-message.user .chat-bubble {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-bottom-right-radius: 6px;
+    }
+    
+    .chat-message.assistant .chat-bubble {
+      background: #ffffff;
+      color: #1f2937;
+      border: 2px solid #e5e7eb;
+      border-bottom-left-radius: 6px;
+    }
+    
+    .chat-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chat-message.user .chat-avatar {
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    }
+    
+    .chat-message.assistant .chat-avatar {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+    }
+    .chat-input-area {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    
+    .chat-input {
+      flex: 1;
+      padding: 12px 18px;
+      border-radius: 24px;
+      border: 2px solid #e5e7eb;
+      font-size: 14px;
+      outline: none;
+      background: #ffffff;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    
+    .chat-input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+      transform: translateY(-1px);
+    }
+    
+    .chat-send-btn {
+      padding: 12px 24px;
+      border-radius: 24px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: none;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    
+    .chat-send-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+    }
+    
+    .chat-send-btn:disabled {
+      background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+      cursor: not-allowed;
+      box-shadow: none;
+      opacity: 0.6;
+    }
+    
+    .chat-keyword-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      color: #92400e;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 6px;
+      box-shadow: 0 2px 4px rgba(146, 64, 14, 0.1);
+    }
+    /* Section标题样式 */
+    .section-title { 
+      font-size: 16px; 
+      font-weight: 700; 
+      margin-bottom: 8px;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .section-title::before {
+      content: '';
+      width: 4px;
+      height: 18px;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      border-radius: 2px;
+    }
+    
+    .section-sub { 
+      font-size: 13px; 
+      color: #6b7280; 
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+    .mono-box {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #e5e7eb;
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+      font-size: 12px;
+      max-height: 300px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .mono-box::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .mono-box::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 3px;
+    }
+    
+    .mono-box::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      border-radius: 3px;
+    }
+    
+    .poi-detail {
+      font-size: 14px;
+      color: #111827;
+    }
+    
+    .poi-card {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      padding: 16px;
+      background: linear-gradient(135deg, #fafbff 0%, #ffffff 100%);
+      border-radius: 12px;
+      border: 2px solid #e5e7eb;
+      transition: all 0.3s;
+    }
+    
+    .poi-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.15);
+      transform: translateY(-2px);
+    }
+    
+    .poi-card-main {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .poi-card h3 {
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 700;
+      color: #1f2937;
+      letter-spacing: -0.3px;
+    }
+    
+    .poi-meta {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .poi-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .poi-meta span + span::before {
+      content: "•";
+      margin: 0 4px;
+      color: #9ca3af;
+    }
+    
+    .poi-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      color: #1e40af;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+      border: 1px solid #bfdbfe;
+    }
+    .poi-info-line {
+      margin: 4px 0;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .poi-info-label {
+      color: #6b7280;
+      margin-right: 4px;
+      font-weight: 600;
+    }
+    
+    .poi-photo {
+      width: 110px;
+      height: 82px;
+      border-radius: 10px;
+      overflow: hidden;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+      border: 2px solid #e5e7eb;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s;
+    }
+    
+    .poi-photo:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+    
+    .poi-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+    
+    .poi-photo:hover img {
+      transform: scale(1.1);
+    }
+    
+    .poi-route-btn {
+      margin-top: 10px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s;
+    }
+    
+    .poi-route-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+    
+    /* 途经点列表样式 */
+    .waypoint-list {
+      margin-top: 14px;
+    }
+    
+    .waypoint-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #fafbff 0%, #f9fafb 100%);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      border: 2px solid #e5e7eb;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .waypoint-item::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .waypoint-item:hover {
+      background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+      border-color: #667eea;
+      transform: translateX(4px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.15);
+    }
+    
+    .waypoint-item:hover::before {
+      opacity: 1;
+    }
+    
+    .waypoint-info {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    
+    .waypoint-order {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 700;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .waypoint-name {
+      font-size: 15px;
+      color: #1f2937;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+    
+    .waypoint-location {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 3px;
+    }
+    
+    .waypoint-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .waypoint-remove-btn {
+      padding: 8px 14px;
+      font-size: 12px;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    }
+    
+    .waypoint-remove-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 32px 24px;
+      color: #9ca3af;
+      font-size: 14px;
+      background: linear-gradient(135deg, #fafbff 0%, #f9fafb 100%);
+      border-radius: 12px;
+      border: 2px dashed #e5e7eb;
+    }
+    
+    .add-waypoint-btn {
+      padding: 8px 14px;
+      font-size: 12px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      margin-left: 8px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      font-weight: 600;
+    }
+    
+    .add-waypoint-btn:hover {
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    .transport-btn {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 2px solid #e5e7eb;
+      background: #ffffff;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .transport-btn::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    
+    .transport-btn:hover {
+      border-color: #667eea;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    }
+    
+    .transport-btn:hover::before {
+      opacity: 1;
+    }
+    
+    .transport-btn.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #ffffff;
+      border-color: #667eea;
+      box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+      transform: translateY(-1px);
+    }
+    
+    .transport-btn.active::before {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>🗺️ 智能路线规划助手</h1>
+    <div class="subtitle">✨ 基于高德地图 MCP 服务 + 通义千问 AI Agent · 支持多途经点优化 ✨</div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label>出发地</label>
+          <input id="start" placeholder="例如：杭州萧山国际机场" />
+        </div>
+        <div class="field">
+          <label>目的地</label>
+          <input id="end" placeholder="例如：杭州西湖景区" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex: 1 1 100%;">
+          <div style="font-size: 12px; color: #6b7280; margin-top: 4px;">
+            提示：为避免跨城市误判，请在出发地和目的地中尽量包含<strong>城市/区县信息</strong>（例如“杭州萧山区西安电子科技大学杭州研究院”），尤其是在异地访问或使用 VPN 时。
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>出行方式</label>
+          <div style="display: flex; gap: 8px; margin-top: 4px;">
+            <button type="button" class="transport-btn" data-mode="walking" style="flex: 1;">🚶 步行</button>
+            <button type="button" class="transport-btn active" data-mode="driving" style="flex: 1;">🚗 驾车</button>
+            <button type="button" class="transport-btn" data-mode="transit" style="flex: 1;">🚇 公共交通</button>
+          </div>
+        </div>
+      </div>
+      <button id="runBtn">▶ 开始规划</button>
+    </div>
+
+    <!-- 拐角点展示卡片已隐藏，如需调试可去掉 style 或删掉整个 card -->
+    <div class="card" style="display:none">
+      <div class="section-title">拐角点（交叉路口）</div>
+      <div class="section-sub">来自步骤 2 的拐角点 JSON</div>
+      <div id="waypoints" class="mono-box">// 等待调用…</div>
+    </div>
+
+    <!-- 公交路线信息显示区域（仅公交模式显示） -->
+    <div class="card" id="transitInfoCard" style="display:none;">
+      <div class="section-title">🚌 公交路线信息</div>
+      <div id="transitInfoContent"></div>
+    </div>
+
+    <!-- 对话式兴趣点搜索栏目 -->
+    <div class="card" id="chatPoiSection" style="display:none;">
+      <div class="section-title">💬 智能兴趣点助手</div>
+      <div class="section-sub">告诉我你想在路上去哪些地方，我会帮你找到并展示在地图上</div>
+      
+      <!-- 聊天消息区域 -->
+      <div id="chatMessages" class="chat-messages"></div>
+      
+      <!-- 当前搜索结果 -->
+      <div id="chatPoiButtons" style="margin-top:12px; display:none;">
+        <div style="font-size:13px; color:#6b7380; margin-bottom:8px;">📍 找到的地点：</div>
+        <div id="chatPoiButtonsContainer"></div>
+      </div>
+      
+      <!-- 输入区域 -->
+      <div class="chat-input-area">
+        <input 
+          id="chatInput" 
+          type="text" 
+          placeholder="比如：我想吃火锅、找个加油站、休息喝咖啡..." 
+          class="chat-input"
+        />
+        <button id="chatSendBtn" class="chat-send-btn">发送</button>
+      </div>
+    </div>
+
+    <div class="card" id="poiDetailCard" style="display:none;">
+      <div class="section-title">兴趣点详情（步骤4）</div>
+      <div class="section-sub">点击上方某个兴趣点按钮后，这里会显示对应的详细信息</div>
+      <div id="poiDetail" class="poi-detail">尚未请求兴趣点详情</div>
+    </div>
+
+    <!-- 途经点列表卡片 -->
+    <div class="card" id="waypointListCard" style="display:none;">
+      <div class="section-title">我的途经点列表</div>
+      <div class="section-sub">已添加的途经点，点击"优化路线"生成最佳路径</div>
+      <div id="waypointList" class="waypoint-list">
+        <div class="empty-state">还没有添加途经点</div>
+      </div>
+      
+      <!-- 优化结果显示区 -->
+      <div id="optimizedResult" style="display:none; margin-top: 16px; padding: 18px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 14px; border: 2px solid #86efac; box-shadow: 0 4px 14px rgba(134, 239, 172, 0.3); animation: fadeIn 0.5s ease-out;">
+        <div style="font-size: 15px; font-weight: 700; color: #166534; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">✅</span>
+          <span>路线优化完成</span>
+        </div>
+        <div id="optimizedInfo" style="font-size: 13px; color: #15803d; line-height: 1.8; margin-bottom: 12px; padding: 10px; background: rgba(255, 255, 255, 0.6); border-radius: 8px;">
+        </div>
+        <a id="openNavBtn" href="#" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 20px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; text-decoration: none; border-radius: 12px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4); transition: all 0.2s; margin-top: 4px;">
+          <span style="font-size: 18px;">🗺️</span>
+          <span>打开高德地图导航</span>
+        </a>
+      </div>
+      
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button id="optimizeRouteBtn" onclick="optimizeRoute()" style="flex: 1;">
+          🔄 优化路线并导航
+        </button>
+        <button id="clearWaypointsBtn" onclick="clearAllWaypoints()" style="background: #ef4444;">
+          🗑️ 清空
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">调用过程日志</div>
+      <div class="section-sub">来自后端 run_agent_with_retry 打印的过程</div>
+      <div id="logs" class="mono-box">// 日志输出区</div>
+    </div>
+  </div>
+
+  <script>
+    // API 基础地址配置
+    // 在移动应用中，可以通过以下方式配置：
+    // 1. 使用环境变量或配置文件
+    // 2. 使用相对路径（如果 API 服务器与前端在同一域名下）
+    // 3. 在 Capacitor 配置中设置服务器地址
+    function getApiBaseUrl() {
+      // 前端通过 Nginx 部署在 47.98.180.26:80，后端 API 也由 Nginx 代理到同域的 /api
+      // 因此前端统一使用相对路径，让浏览器请求当前域名下的 /api/*，再由 Nginx 转发到 FastAPI
+      return '';
+    }
+    
+    const API_BASE_URL = getApiBaseUrl();
+    
+    const runBtn = document.getElementById('runBtn');
+    const startInput = document.getElementById('start');
+    const endInput = document.getElementById('end');
+    const waypointsEl = document.getElementById('waypoints');
+    const poiDetailEl = document.getElementById('poiDetail');
+    const poiDetailCard = document.getElementById('poiDetailCard');
+    const logsEl = document.getElementById('logs');
+    
+    // 聊天界面元素
+    const chatPoiSection = document.getElementById('chatPoiSection');
+    const chatMessages = document.getElementById('chatMessages');
+    const chatPoiButtons = document.getElementById('chatPoiButtons');
+    const chatPoiButtonsContainer = document.getElementById('chatPoiButtonsContainer');
+    const chatInput = document.getElementById('chatInput');
+    const chatSendBtn = document.getElementById('chatSendBtn');
+    
+    // 对话历史
+    let conversationHistory = [];
+    
+    // 出行方式选择
+    let selectedTransportMode = 'driving';
+    
+    // 会话ID（用于途经点管理）
+    let sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    
+    // 途经点列表（本地缓存）
+    let waypointsList = [];
+    
+    // 当前查看的POI信息（用于添加途经点）
+    let currentPoiInfo = null;
+    const transportBtns = document.querySelectorAll('.transport-btn');
+    transportBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        transportBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedTransportMode = btn.getAttribute('data-mode');
+      });
+    });
+
+    function appendLog(line) {
+      const ts = new Date().toLocaleTimeString();
+      logsEl.textContent += `[${ts}] ${line}\n`;
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+    
+    // ===== 途经点管理功能 =====
+    
+    // 添加途经点到路线
+    async function addToWaypoints(poiName, poiId, location) {
+      if (!poiName) {
+        alert('POI名称为空，无法添加');
+        return;
+      }
+      
+      const start = startInput.value.trim();
+      const end = endInput.value.trim();
+      
+      if (!start || !end) {
+        alert('请先设置起点和终点');
+        return;
+      }
+      
+      appendLog(`[途经点] 正在添加：${poiName}`);
+      
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/add_waypoint`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            waypoint_name: poiName,
+            poi_id: poiId || null,
+            start: start,
+            end: end,
+            // 把当前出行方式一并传给后端，用于公交模式下限制多途经点
+            transport_mode: selectedTransportMode
+          })
+        });
+        
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+          appendLog(`[途经点] 添加成功：${poiName}`);
+          waypointsList = data.waypoints || [];
+          renderWaypointsList();
+          
+          // 显示途经点列表卡片
+          const waypointListCard = document.getElementById('waypointListCard');
+          if (waypointListCard) {
+            waypointListCard.style.display = 'block';
+          }
+          
+          // 提示用户
+          alert(`✅ 已添加途经点：${poiName}\n\n当前共 ${waypointsList.length} 个途经点`);
+        } else {
+          appendLog(`[途经点] 添加失败：${data.message}`);
+          alert(`添加失败：${data.message}`);
+        }
+        
+        // 显示日志
+        if (data.logs) {
+          const logLines = data.logs.split('\n');
+          logLines.forEach(line => {
+            if (line.trim() && line.includes('[添加途经点]')) {
+              appendLog(line);
+            }
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        appendLog(`[途经点] 添加异常：${err}`);
+        alert(`添加途经点失败：${err.message}`);
+      }
+    }
+    
+    // 渲染途经点列表
+    function renderWaypointsList() {
+      const waypointListEl = document.getElementById('waypointList');
+      
+      if (!waypointsList || waypointsList.length === 0) {
+        waypointListEl.innerHTML = '<div class="empty-state">还没有添加途经点</div>';
+        return;
+      }
+      
+      let html = '';
+      waypointsList.forEach((wp, index) => {
+        const locationText = wp.location ? `📍 ${wp.location}` : '坐标待解析';
+        html += `
+          <div class="waypoint-item">
+            <div class="waypoint-info">
+              <div class="waypoint-order">${index + 1}</div>
+              <div>
+                <div class="waypoint-name">${escapeHtml(wp.name)}</div>
+                <div class="waypoint-location">${locationText}</div>
+              </div>
+            </div>
+            <div class="waypoint-actions">
+              <button class="waypoint-remove-btn" onclick="removeWaypoint(${index})">
+                🗑️ 删除
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      
+      waypointListEl.innerHTML = html;
+    }
+    
+    // 删除途经点
+    async function removeWaypoint(index) {
+      if (index < 0 || index >= waypointsList.length) {
+        return;
+      }
+      
+      const wp = waypointsList[index];
+      if (!confirm(`确定要删除途经点「${wp.name}」吗？`)) {
+        return;
+      }
+      
+      appendLog(`[途经点] 正在删除：${wp.name}`);
+      
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/remove_waypoint`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            waypoint_index: index
+          })
+        });
+        
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+          appendLog(`[途经点] 删除成功：${wp.name}`);
+          waypointsList = data.waypoints || [];
+          renderWaypointsList();
+          
+          // 如果没有途经点了，隐藏卡片
+          if (waypointsList.length === 0) {
+            const waypointListCard = document.getElementById('waypointListCard');
+            if (waypointListCard) {
+              waypointListCard.style.display = 'none';
+            }
+          }
+        } else {
+          appendLog(`[途经点] 删除失败：${data.message}`);
+          alert(`删除失败：${data.message}`);
+        }
+      } catch (err) {
+        console.error(err);
+        appendLog(`[途经点] 删除异常：${err}`);
+        alert(`删除途经点失败：${err.message}`);
+      }
+    }
+    
+    // 清空所有途经点
+    function clearAllWaypoints() {
+      if (waypointsList.length === 0) {
+        return;
+      }
+      
+      if (!confirm(`确定要清空所有 ${waypointsList.length} 个途经点吗？`)) {
+        return;
+      }
+      
+      // 逐个删除
+      const deletePromises = [];
+      for (let i = waypointsList.length - 1; i >= 0; i--) {
+        deletePromises.push(
+          fetch(`${API_BASE_URL}/api/remove_waypoint`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              session_id: sessionId,
+              waypoint_index: i
+            })
+          })
+        );
+      }
+      
+      Promise.all(deletePromises).then(() => {
+        waypointsList = [];
+        renderWaypointsList();
+        
+        const waypointListCard = document.getElementById('waypointListCard');
+        if (waypointListCard) {
+          waypointListCard.style.display = 'none';
+        }
+        
+        appendLog('[途经点] 已清空所有途经点');
+      }).catch(err => {
+        console.error(err);
+        alert(`清空失败：${err.message}`);
+      });
+    }
+    
+    // 优化路线并导航
+    async function optimizeRoute() {
+      const start = startInput.value.trim();
+      const end = endInput.value.trim();
+      
+      if (!start || !end) {
+        alert('请先设置起点和终点');
+        return;
+      }
+      
+      if (waypointsList.length === 0) {
+        alert('请先添加途经点');
+        return;
+      }
+      
+      appendLog(`[路线优化] 开始优化路线，包含 ${waypointsList.length} 个途经点...`);
+      
+      const optimizeBtn = document.getElementById('optimizeRouteBtn');
+      optimizeBtn.disabled = true;
+      optimizeBtn.textContent = '⏳ 优化中...';
+      
+      try {
+        const resp = await fetch(`${API_BASE_URL}/api/optimize_route`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            start: start,
+            end: end,
+            transport_mode: selectedTransportMode
+          })
+        });
+        
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status}`);
+        }
+        
+        const data = await resp.json();
+        
+        if (data.success) {
+          appendLog(`[路线优化] 优化成功！`);
+          appendLog(`[路线优化] 总距离：${data.total_distance_km ? data.total_distance_km.toFixed(1) + ' 公里' : '未知'}`);
+          appendLog(`[路线优化] 预计时间：${data.total_duration_min ? Math.round(data.total_duration_min) + ' 分钟' : '未知'}`);
+          
+          // 更新途经点列表（已优化顺序）
+          waypointsList = data.optimized_waypoints || [];
+          renderWaypointsList();
+          
+          // 显示路线摘要
+          if (data.route_summary) {
+            appendLog(`[路线摘要] ${data.route_summary}`);
+          }
+          
+          // 显示日志
+          if (data.logs) {
+            appendLog('--- 路线优化详细日志 ---');
+            const logLines = data.logs.split('\n');
+            logLines.forEach(line => {
+              if (line.trim() && line.includes('[路线优化]')) {
+                appendLog(line);
+              }
+            });
+            appendLog('--- 路线优化日志结束 ---');
+          }
+          
+          // 显示优化结果
+          const waypointNames = data.optimized_waypoints.map(wp => wp.name).join(' → ');
+          const distanceText = data.total_distance_km ? `${data.total_distance_km.toFixed(1)} 公里` : '未知';
+          const durationText = data.total_duration_min ? `${Math.round(data.total_duration_min)} 分钟` : '未知';
+          
+          const optimizedResult = document.getElementById('optimizedResult');
+          const optimizedInfo = document.getElementById('optimizedInfo');
+          const openNavBtn = document.getElementById('openNavBtn');
+          
+          if (optimizedInfo) {
+            optimizedInfo.innerHTML = `
+              📍 <strong>路线：</strong>${escapeHtml(start)} → ${escapeHtml(waypointNames)} → ${escapeHtml(end)}<br>
+              📏 <strong>总距离：</strong>${distanceText}<br>
+              ⏱️ <strong>预计时间：</strong>${durationText}
+            `;
+          }
+          
+          // 打开高德地图导航
+          if (data.nav_url) {
+            appendLog(`[导航] 正在打开高德地图...`);
+            appendLog(`[导航] 导航链接：${data.nav_url}`);
+            
+            // 设置导航按钮链接
+            if (openNavBtn) {
+              openNavBtn.href = data.nav_url;
+              openNavBtn.style.display = 'inline-flex';
+            }
+            
+            // 显示优化结果区域
+            if (optimizedResult) {
+              optimizedResult.style.display = 'block';
+            }
+            
+            // 先尝试自动打开导航链接
+            const opened = window.open(data.nav_url, '_blank');
+            
+            if (opened) {
+              // 成功打开
+              appendLog(`[导航] ✅ 已在新窗口打开高德地图`);
+              alert(`✅ 路线优化完成！\n\n已在新窗口打开高德地图导航\n如未自动打开，请点击下方绿色按钮`);
+            } else {
+              // 被浏览器阻止
+              appendLog(`[导航] ⚠️ 浏览器阻止了弹出窗口`);
+              alert(`✅ 路线优化完成！\n\n⚠️ 浏览器阻止了弹出窗口\n请点击下方绿色"打开高德地图导航"按钮`);
+            }
+          } else {
+            // 没有导航链接
+            if (openNavBtn) {
+              openNavBtn.style.display = 'none';
+            }
+            if (optimizedResult) {
+              optimizedResult.style.display = 'block';
+            }
+            alert(`✅ 路线优化完成！\n\n但未能生成导航链接，请手动在高德地图中输入途经点。`);
+          }
+        } else {
+          appendLog(`[路线优化] 优化失败：${data.message}`);
+          alert(`路线优化失败：${data.message}`);
+          
+          // 显示日志
+          if (data.logs) {
+            const logLines = data.logs.split('\n');
+            logLines.forEach(line => {
+              if (line.trim()) {
+                appendLog(line);
+              }
+            });
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        appendLog(`[路线优化] 优化异常：${err}`);
+        alert(`路线优化失败：${err.message}`);
+      } finally {
+        optimizeBtn.disabled = false;
+        optimizeBtn.textContent = '🔄 优化路线并导航';
+      }
+    }
+
+    function renderPoiDetail(rawDetail, extraDistanceKm, viaNavUrl, alightStopName, walkNavUrl, showAddToRoute) {
+      // 尝试将 detail 解析为 JSON 对象
+      let obj = null;
+      if (rawDetail && typeof rawDetail === 'object') {
+        obj = rawDetail;
+      } else if (typeof rawDetail === 'string') {
+        try {
+          obj = JSON.parse(rawDetail);
+        } catch (e) {
+          obj = null;
+        }
+      }
+
+      // 如果不是结构化 JSON，就退回到原来的纯文本展示
+      if (!obj) {
+        poiDetailEl.className = 'mono-box';
+        poiDetailEl.textContent = rawDetail || '// 后端未返回兴趣点详情内容';
+        return;
+      }
+
+      const {
+        name,
+        city,
+        address,
+        business_area,
+        type,
+        rating,
+        cost,
+        open_time,
+        opentime2,
+        meal_ordering,
+        photo,
+        location,
+      } = obj;
+
+      const prettyCost = cost ? `约 ${escapeHtml(String(cost))} 元` : '暂无数据';
+      const mealOrderingText =
+        meal_ordering === '1' || meal_ordering === 1
+          ? '支持在线点餐'
+          : '暂不支持在线点餐';
+      const openText = opentime2 || open_time || '无营业时间信息';
+
+      // 计算高德地图跳转链接
+      // 使用高德地图 ditu.amap.com 的标准格式
+      // 起点使用用户设置的出发点，如果未设置则使用"我的位置"
+      
+      // 根据选择的出行方式设置高德地图的 type 参数
+      let amapType = 'car'; // 默认驾车
+      if (selectedTransportMode === 'walking') {
+        amapType = 'walk';
+      } else if (selectedTransportMode === 'transit') {
+        amapType = 'bus';
+      } else {
+        amapType = 'car';
+      }
+      
+      // 获取用户设置的起点
+      const userStart = startInput.value.trim();
+      let fromName, fromId;
+      if (userStart) {
+        // 如果用户输入了起点，使用用户输入的起点名称
+        fromName = encodeURIComponent(userStart);
+        fromId = ''; // 不使用 dirmyloc，让高德地图解析地址名称
+      } else {
+        // 如果用户未输入起点，使用"我的位置"
+        fromName = encodeURIComponent('我的位置');
+        fromId = 'dirmyloc';
+      }
+      
+      // 公交模式：优先使用 walkNavUrl（从公交站到POI的步行导航），否则使用 viaNavUrl 或生成默认导航链接
+      // 驾车/步行模式：优先使用后端返回的"起点-途经点-终点"导航链接
+      let amapUrl = '';
+      if (selectedTransportMode === 'transit' && walkNavUrl) {
+        // 公交模式：使用从公交站到POI的步行导航
+        amapUrl = walkNavUrl;
+      } else if (viaNavUrl) {
+        // 驾车/步行模式：使用后端返回的导航链接
+        amapUrl = viaNavUrl;
+      } else {
+        // 回退：生成默认导航链接
+        if (location && typeof location === 'string' && location.includes(',')) {
+          // 有POI坐标，使用标准格式（仅起点->POI，作为回退）
+          const toLnglat = location; // 已经是 'lon,lat' 格式
+          const toName = encodeURIComponent(name || '目的地');
+          if (fromId) {
+            // 使用"我的位置"时，需要 from[id]
+            amapUrl = `https://ditu.amap.com/dir?type=${amapType}&policy=2&from[name]=${fromName}&from[id]=${fromId}&to[lnglat]=${toLnglat}&to[name]=${toName}&src=uriapi&callnative=0&innersrc=uriapi`;
+          } else {
+            // 使用用户输入的起点时，不传 from[id]
+            amapUrl = `https://ditu.amap.com/dir?type=${amapType}&policy=2&from[name]=${fromName}&to[lnglat]=${toLnglat}&to[name]=${toName}&src=uriapi&callnative=0&innersrc=uriapi`;
+          }
+        } else {
+          // 没有经纬度时，只使用地址名称
+          const toName = encodeURIComponent(name || '目的地');
+          if (fromId) {
+            // 使用"我的位置"时，需要 from[id]
+            amapUrl = `https://ditu.amap.com/dir?type=${amapType}&policy=2&from[name]=${fromName}&from[id]=${fromId}&to[name]=${toName}&src=uriapi&callnative=0&innersrc=uriapi`;
+          } else {
+            // 使用用户输入的起点时，不传 from[id]
+            amapUrl = `https://ditu.amap.com/dir?type=${amapType}&policy=2&from[name]=${fromName}&to[name]=${toName}&src=uriapi&callnative=0&innersrc=uriapi`;
+          }
+        }
+      }
+
+      poiDetailEl.className = 'poi-detail';
+      poiDetailEl.innerHTML = `
+        <div class="poi-card">
+          <div class="poi-card-main">
+            <div style="margin-bottom:4px;">
+              <h3>
+                ${escapeHtml(name || '未命名兴趣点')}
+                ${
+                  type
+                    ? `<span class="poi-badge">${
+                        escapeHtml(type.split(';')[2] || type.split(';')[1] || type)
+                      }</span>`
+                    : ''
+                }
+              </h3>
+            </div>
+            <div class="poi-meta">
+              ${rating ? `<span>评分：${escapeHtml(String(rating))} 分</span>` : ''}
+              ${cost ? `<span>人均消费：${prettyCost}</span>` : ''}
+            </div>
+            <div class="poi-info-line">
+              <span class="poi-info-label">城市：</span>
+              <span>${escapeHtml(city || '未知城市')}</span>
+            </div>
+            <div class="poi-info-line">
+              <span class="poi-info-label">商圈：</span>
+              <span>${escapeHtml(business_area || '无商圈信息')}</span>
+            </div>
+            <div class="poi-info-line">
+              <span class="poi-info-label">地址：</span>
+              <span>${escapeHtml(address || '无详细地址')}</span>
+            </div>
+            <div class="poi-info-line">
+              <span class="poi-info-label">营业时间：</span>
+              <span>${escapeHtml(openText)}</span>
+            </div>
+            <div class="poi-info-line">
+              <span class="poi-info-label">在线点餐：</span>
+              <span>${mealOrderingText}</span>
+            </div>
+            <div class="poi-info-line">
+              <span class="poi-info-label">绕路距离：</span>
+              <span>${
+                typeof extraDistanceKm === 'number'
+                  ? `大约多行驶 ${extraDistanceKm.toFixed(1)} 公里`
+                  : '暂无法计算'
+              }</span>
+            </div>
+            ${
+              selectedTransportMode === 'transit'
+                ? `<div style="margin-top: 12px; padding: 12px; background-color: #f0f7ff; border-radius: 8px; border-left: 4px solid #1890ff;">
+                     <div style="font-weight: bold; color: #1890ff; margin-bottom: 8px;">
+                       🚌 公交出行提示
+                     </div>
+                     ${
+                       alightStopName
+                         ? `<div style="color: #666; margin-bottom: 8px;">
+                              请在 <strong style="color: #1890ff;">${escapeHtml(alightStopName)}</strong> 下车
+                            </div>`
+                         : '<div style="color: #666; margin-bottom: 8px;">建议在最近的公交站下车后步行前往</div>'
+                     }
+                   </div>`
+                : ''
+            }
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              ${
+                amapUrl
+                  ? `<a
+                       class="poi-route-btn"
+                       href="${escapeHtml(amapUrl)}"
+                       target="_blank"
+                       rel="noopener"
+                       style="flex: 1;"
+                     >
+                       ${selectedTransportMode === 'transit' && walkNavUrl ? '🚶 步行前往' : '🚗 去这里'}
+                     </a>`
+                  : ''
+              }
+              ${
+                (showAddToRoute === undefined || showAddToRoute !== false) && selectedTransportMode !== 'transit'
+                  ? `<button 
+                       class="add-waypoint-btn" 
+                       onclick="addToWaypoints('${escapeHtml(name || '')}', '${escapeHtml(obj.id || '')}', '${escapeHtml(location || '')}')"
+                       style="flex: 1;"
+                     >
+                       ➕ 加入路线
+                     </button>`
+                  : ''
+              }
+            </div>
+          </div>
+          ${
+            photo
+              ? `<div class="poi-photo">
+                   <img src="${escapeHtml(photo)}" alt="${escapeHtml(name || '兴趣点图片')}">
+                 </div>`
+              : ''
+          }
+        </div>
+      `;
+    }
+
+    // 添加聊天消息到界面
+    function addChatMessage(role, content, extractedKeywords) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `chat-message ${role}`;
+      
+      const avatarDiv = document.createElement('div');
+      avatarDiv.className = 'chat-avatar';
+      avatarDiv.textContent = role === 'user' ? '👤' : '🤖';
+      
+      const bubbleDiv = document.createElement('div');
+      bubbleDiv.className = 'chat-bubble';
+      bubbleDiv.textContent = content;
+      
+      // 如果提取了关键词，显示标签
+      if (extractedKeywords) {
+        const keywordBadge = document.createElement('div');
+        keywordBadge.className = 'chat-keyword-badge';
+        keywordBadge.textContent = `🔍 搜索关键词：${extractedKeywords}`;
+        bubbleDiv.appendChild(keywordBadge);
+      }
+      
+      messageDiv.appendChild(avatarDiv);
+      messageDiv.appendChild(bubbleDiv);
+      chatMessages.appendChild(messageDiv);
+      
+      // 滚动到底部
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+    
+    // 渲染聊天界面的兴趣点按钮
+    function renderChatPoiButtons(pois, pois_ids) {
+      chatPoiButtonsContainer.innerHTML = '';
+      
+      if (!pois_ids || pois_ids.length === 0) {
+        chatPoiButtons.style.display = 'none';
+        return;
+      }
+      
+      chatPoiButtons.style.display = 'block';
+      
+      let poiNames = [];
+      if (Array.isArray(pois)) {
+        poiNames = pois.map(p => (p && p.name) ? p.name : '');
+      }
+
+      pois_ids.forEach((id, idx) => {
+        const btn = document.createElement('button');
+        const nameFromPois = poiNames[idx] || '';
+        btn.textContent = nameFromPois ? nameFromPois : `兴趣点 ${idx + 1}`;
+        btn.title = `POI id: ${id}`;
+        btn.style.marginRight = '6px';
+        btn.style.marginBottom = '6px';
+        btn.onclick = async () => {
+          const start = startInput.value.trim();
+          const end = endInput.value.trim();
+          appendLog(`点击兴趣点 ${idx + 1}，请求详情，id=${id}`);
+          try {
+            const detailController = new AbortController();
+            const detailTimeoutId = setTimeout(() => detailController.abort(), 30000);
+            
+            let detailResp;
+            try {
+              detailResp = await fetch(`${API_BASE_URL}/api/poi_detail`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  poi_id: id,
+                  start,
+                  end,
+                  transport_mode: selectedTransportMode,
+                }),
+                signal: detailController.signal,
+              });
+            } catch (detailFetchError) {
+              clearTimeout(detailTimeoutId);
+              if (detailFetchError.name === 'AbortError') {
+                appendLog('兴趣点详情请求超时（30秒）');
+                if (poiDetailCard) {
+                  poiDetailCard.style.display = 'block';
+                }
+                poiDetailEl.textContent = '请求超时：请稍后重试';
+                return;
+              }
+              throw detailFetchError;
+            }
+            clearTimeout(detailTimeoutId);
+            if (!detailResp.ok) {
+              appendLog(`兴趣点详情请求失败：HTTP ${detailResp.status}`);
+              if (poiDetailCard) {
+                poiDetailCard.style.display = 'block';
+              }
+              poiDetailEl.textContent = `获取兴趣点详情失败：HTTP ${detailResp.status}`;
+              return;
+            }
+            const detailData = await detailResp.json();
+            const preview = typeof detailData.detail === 'string'
+              ? detailData.detail.slice(0, 200)
+              : JSON.stringify(detailData.detail).slice(0, 200);
+            appendLog(`兴趣点详情：${preview}...`);
+            
+            if (detailData.logs) {
+              appendLog('--- 步骤四详细日志 ---');
+              const logLines = detailData.logs.split('\n');
+              logLines.forEach(line => {
+                if (line.trim()) {
+                  appendLog(line);
+                }
+              });
+              appendLog('--- 步骤四日志结束 ---');
+            }
+            
+            console.log('步骤四响应数据：', detailData);
+            // 显示兴趣点详情卡片
+            if (poiDetailCard) {
+              poiDetailCard.style.display = 'block';
+            }
+            renderPoiDetail(
+              detailData.detail, 
+              detailData.extra_distance_km, 
+              detailData.via_nav_url,
+              detailData.alight_stop_name,
+              detailData.walk_nav_url,
+              detailData.show_add_to_route
+            );
+          } catch (e) {
+            console.error(e);
+            appendLog(`兴趣点详情请求异常：${e}`);
+            if (poiDetailCard) {
+              poiDetailCard.style.display = 'block';
+            }
+            poiDetailEl.textContent = `兴趣点详情请求异常：${e}`;
+          }
+        };
+        chatPoiButtonsContainer.appendChild(btn);
+      });
+    }
+    
+    // 发送聊天消息
+    async function sendChatMessage() {
+      const start = startInput.value.trim();
+      const end = endInput.value.trim();
+      const message = chatInput.value.trim();
+
+      if (!start || !end) {
+        alert('请先进行路线规划');
+        return;
+      }
+
+      if (!message) {
+        return;
+      }
+
+      // 添加用户消息到界面
+      addChatMessage('user', message);
+      chatInput.value = '';
+      chatSendBtn.disabled = true;
+      chatInput.disabled = true;
+
+      appendLog(`[对话] 用户：${message}`);
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        
+        let resp;
+        try {
+          resp = await fetch(`${API_BASE_URL}/api/chat_poi`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              start, 
+              end, 
+              message,
+              transport_mode: selectedTransportMode,
+              conversation_history: conversationHistory,
+              session_id: sessionId
+            }),
+            signal: controller.signal,
+          });
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            appendLog('[对话] 请求超时（60秒）');
+            addChatMessage('assistant', '抱歉，请求超时了，请重试。');
+            return;
+          }
+          throw fetchError;
+        }
+        clearTimeout(timeoutId);
+
+        if (!resp.ok) {
+          const errorText = await resp.text();
+          appendLog(`[对话] 请求失败：${resp.status} - ${errorText}`);
+          addChatMessage('assistant', `抱歉，遇到了问题：${errorText}`);
+          return;
+        }
+
+        const data = await resp.json();
+        
+        // 添加助手回复到界面
+        addChatMessage('assistant', data.reply, data.extracted_keywords);
+        appendLog(`[对话] 助手：${data.reply}`);
+        
+        // 更新对话历史
+        conversationHistory = data.conversation_history || [];
+        
+        // 处理不同的动作类型
+        if (data.action === 'add_waypoint' && data.waypoint_added) {
+          // 添加途经点成功
+          appendLog(`[对话] 已添加途经点：${data.waypoint_added}`);
+          
+          // 刷新途经点列表
+          try {
+            const listResp = await fetch(`${API_BASE_URL}/api/list_waypoints`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ session_id: sessionId })
+            });
+            
+            if (listResp.ok) {
+              const listData = await listResp.json();
+              waypointsList = listData.waypoints || [];
+              renderWaypointsList();
+              
+              // 显示途经点列表卡片
+              const waypointListCard = document.getElementById('waypointListCard');
+              if (waypointListCard && waypointsList.length > 0) {
+                waypointListCard.style.display = 'block';
+              }
+            }
+          } catch (err) {
+            console.error('刷新途经点列表失败：', err);
+          }
+          
+          chatPoiButtons.style.display = 'none';
+        } else if (data.action === 'search' && Array.isArray(data.pois) && data.pois.length > 0) {
+          // 搜索兴趣点成功
+          appendLog(`[对话] 找到 ${data.pois.length} 个兴趣点`);
+          renderChatPoiButtons(data.pois, data.pois_ids);
+        } else {
+          chatPoiButtons.style.display = 'none';
+        }
+
+        // 显示日志
+        if (data.logs) {
+          const logLines = data.logs.split('\n');
+          logLines.forEach(line => {
+            if (line.trim() && line.includes('[对话POI]')) {
+              appendLog(line);
+            }
+          });
+        }
+
+      } catch (err) {
+        console.error(err);
+        appendLog(`[对话] 异常：${err}`);
+        addChatMessage('assistant', '抱歉，发生了错误，请重试。');
+      } finally {
+        chatSendBtn.disabled = false;
+        chatInput.disabled = false;
+        chatInput.focus();
+      }
+    }
+    
+    // 聊天发送按钮事件
+    chatSendBtn.onclick = sendChatMessage;
+    
+    // 回车发送
+    chatInput.onkeypress = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
+      }
+    };
+
+    runBtn.onclick = async () => {
+      const start = startInput.value.trim();
+      const end = endInput.value.trim();
+
+      if (!start || !end) {
+        alert('请填写出发地和目的地');
+        return;
+      }
+
+      runBtn.disabled = true;
+      runBtn.textContent = '规划中…';
+
+      waypointsEl.textContent = '// 等待返回拐角点…';
+      logsEl.textContent = '';
+      poiDetailEl.className = 'poi-detail';
+      poiDetailEl.textContent = '尚未请求兴趣点详情';
+      
+      // 清空途经点列表，防止之前内容影响后续内容
+      waypointsList = [];
+      renderWaypointsList();
+      const waypointListCard = document.getElementById('waypointListCard');
+      if (waypointListCard) {
+        waypointListCard.style.display = 'none';
+      }
+      const optimizedResult = document.getElementById('optimizedResult');
+      if (optimizedResult) {
+        optimizedResult.style.display = 'none';
+      }
+      
+      // 隐藏兴趣点详情卡片、聊天界面和公交路线信息
+      if (poiDetailCard) {
+        poiDetailCard.style.display = 'none';
+      }
+      chatPoiSection.style.display = 'none';
+      const transitInfoCard = document.getElementById('transitInfoCard');
+      if (transitInfoCard) {
+        transitInfoCard.style.display = 'none';
+      }
+
+      appendLog(`请求开始：${start} -> ${end}, 出行方式：${selectedTransportMode}`);
+
+      try {
+        // 添加超时控制（120秒，与后端总超时时间一致）
+        // 路线规划任务可能需要多次MCP调用，处理时间可能较长
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 120000);  // 120秒 = 2分钟
+        
+        appendLog('开始请求路线规划，预计需要30-90秒...');
+        let resp;
+        try {
+          resp = await fetch(`${API_BASE_URL}/api/route`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ start, end, transport_mode: selectedTransportMode }),
+            signal: controller.signal,
+          });
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            appendLog('请求超时（120秒），后端可能已卡死或MCP服务不可用');
+            return;
+          }
+          throw fetchError;
+        }
+        clearTimeout(timeoutId);
+        appendLog('收到后端响应，正在解析数据...');
+
+        if (!resp.ok) {
+          appendLog(`后端返回错误状态：${resp.status}`);
+          return;
+        }
+
+        const data = await resp.json();
+
+        waypointsEl.textContent = data.waypoints
+          ? JSON.stringify(data.waypoints, null, 2)
+          : '// 后端未返回拐角点 JSON';
+
+        logsEl.textContent = data.logs || '// 无日志输出';
+        
+        // 显示公交路线信息（如果存在）
+        const transitInfoCard = document.getElementById('transitInfoCard');
+        const transitInfoContent = document.getElementById('transitInfoContent');
+        if (data.transit_info && selectedTransportMode === 'transit') {
+          const transitInfo = data.transit_info;
+          let html = '';
+          
+          // 路线描述
+          if (transitInfo.route_description) {
+            html += `<div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border-radius: 10px; border-left: 4px solid #0ea5e9;">`;
+            html += `<div style="font-weight: 600; color: #0c4a6e; margin-bottom: 6px; font-size: 14px;">📍 路线详情</div>`;
+            html += `<div style="color: #075985; line-height: 1.6; font-size: 14px;">${escapeHtml(transitInfo.route_description)}</div>`;
+            html += `</div>`;
+          }
+          
+          // 路线步骤详情
+          if (transitInfo.route_steps && transitInfo.route_steps.length > 0) {
+            html += `<div style="margin-bottom: 16px;">`;
+            html += `<div style="font-weight: 600; color: #1e293b; margin-bottom: 10px; font-size: 14px;">🚶 详细步骤</div>`;
+            transitInfo.route_steps.forEach((step, index) => {
+              const stepIcon = step.type === 'walking' ? '🚶' : step.type === 'bus' ? '🚌' : step.type === 'subway' ? '🚇' : '📍';
+              html += `<div style="padding: 10px 12px; margin-bottom: 8px; background: #f8fafc; border-radius: 8px; border-left: 3px solid ${step.type === 'walking' ? '#10b981' : step.type === 'bus' ? '#3b82f6' : '#8b5cf6'};">`;
+              html += `<div style="display: flex; align-items: center; gap: 8px;">`;
+              html += `<span style="font-size: 18px;">${stepIcon}</span>`;
+              html += `<span style="color: #334155; font-size: 14px; flex: 1;">${escapeHtml(step.description)}</span>`;
+              html += `</div>`;
+              html += `</div>`;
+            });
+            html += `</div>`;
+          }
+          
+          // 最终下车点
+          if (transitInfo.final_alight_stop) {
+            html += `<div style="padding: 14px; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 10px; border-left: 4px solid #f59e0b;">`;
+            html += `<div style="font-weight: 600; color: #92400e; margin-bottom: 6px; font-size: 14px;">🎯 最终下车点</div>`;
+            html += `<div style="color: #78350f; font-size: 16px; font-weight: 600;">${escapeHtml(transitInfo.final_alight_stop.name)}</div>`;
+            html += `<div style="color: #92400e; font-size: 12px; margin-top: 4px;">请在此站下车，然后步行前往目的地</div>`;
+            html += `</div>`;
+          }
+          
+          // 总距离和总时间
+          if (transitInfo.total_distance_m || transitInfo.total_duration_s) {
+            html += `<div style="margin-top: 12px; padding: 10px; background: #f1f5f9; border-radius: 8px; display: flex; gap: 20px; font-size: 13px; color: #475569;">`;
+            if (transitInfo.total_distance_m) {
+              html += `<div><strong>总距离：</strong>${(transitInfo.total_distance_m / 1000).toFixed(1)} 公里</div>`;
+            }
+            if (transitInfo.total_duration_s) {
+              html += `<div><strong>预计时间：</strong>${Math.round(transitInfo.total_duration_s / 60)} 分钟</div>`;
+            }
+            html += `</div>`;
+          }
+          
+          transitInfoContent.innerHTML = html;
+          transitInfoCard.style.display = 'block';
+        } else {
+          transitInfoCard.style.display = 'none';
+        }
+        
+        // 路线规划完成后，显示聊天界面
+        chatPoiSection.style.display = 'block';
+        chatMessages.innerHTML = '';
+        chatPoiButtons.style.display = 'none';
+        conversationHistory = [];
+        
+        // 添加欢迎消息（只显示，不加入对话历史）
+        // 因为通义千问要求对话必须以用户消息开始，assistant 消息不能作为第一条
+        addChatMessage('assistant', '你好！路线规划完成了。告诉我你想在路上去哪些地方，比如吃饭、加油、休息等，我会帮你找到沿途合适的地点。');
+        
+        appendLog('路线规划完成，智能兴趣点助手已就绪');
+      } catch (err) {
+        console.error(err);
+        appendLog(`前端异常：${err}`);
+      } finally {
+        runBtn.disabled = false;
+        runBtn.textContent = '开始规划';
+      }
+    };
+  </script>
+</body>
+</html>
