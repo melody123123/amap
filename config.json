@@ -3,15 +3,16 @@
     "model": "qwen-plus",
     "temperature": 0.3,
     "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "api_key": "sk-956b4ffb4b0d4bcf80009960b77c4de0"
+    "api_key": "your_llm_api_key"
   },
   "agent": {
     "type": "OPENAI_FUNCTIONS",
     "verbose": true
   },
   "amap": {
-    "api_key": "beeb7b2422d22536c85a60ba9175d5d8"
+    "api_key": "your_amap_api_key"
   }
 }
+
 
 
